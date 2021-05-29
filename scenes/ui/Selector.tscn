@@ -1,0 +1,97 @@
+[gd_scene load_steps=2 format=2]
+
+[sub_resource type="GDScript" id=1]
+script/source = "extends Node2D
+
+var dragging = false  # Are we currently dragging?
+var selected = [] setget _set_selection# Array of currently selected units.
+var drag_start = Vector2.ZERO  # Location where drag began.
+var select_rect = RectangleShape2D.new()  # Collision shape for drag box.
+		
+func _unhandled_input(event):	#Selection input
+	
+	if event is InputEventMouseButton:
+		if event.pressed:
+			# We only want to start a drag if there's no selection.
+			if event.button_index == BUTTON_LEFT:
+				for item in selected:
+					item.collider.selected = false
+				selected = []
+				_set_selection(selected)	#Because setget not working
+				dragging = true
+				drag_start = event.position
+		# Button released while dragging.
+		elif dragging:
+			dragging = false
+			update()
+			selectUnits(event)
+
+	if event is InputEventMouseMotion:
+		if dragging:
+			update()
+		if Inputs.leftDown:
+			selectUnits(event)
+			deselectUnits(event)
+	if Inputs.rightDown:
+		for item in selected:
+			if item.collider.type == \"unit\":
+				item.collider.groupPos = Functions.posAverage(selected)
+				item.collider.target = event.position
+				item.collider.middleClicked = false
+	if Inputs.middleDown:
+			for item in selected:
+				if item.collider.type == \"unit\":
+					item.collider.groupPos = Functions.posAverage(selected)
+					item.collider.target = event.position
+					item.collider.middleClicked = true
+
+func _draw():	#Selection drawing
+	if dragging:
+		var outline = draw_rect(Rect2(drag_start - Vector2(1.0, 1.0), get_global_mouse_position() - drag_start + Vector2(2.0, 1.0)),
+				Color(0,1,1,1), false, 1.0, true)
+		var rect = draw_rect(Rect2(drag_start, get_global_mouse_position() - drag_start),
+				Color(0,1,1,0.1), true)
+
+func selectUnits(e):	#Selection of units
+	var drag_end = e.position
+	# Extents are measured from center.
+	select_rect.extents = (drag_end - drag_start) / 2
+	var space = get_world_2d().direct_space_state
+	var query = Physics2DShapeQueryParameters.new()
+	query.set_shape(select_rect)
+	query.transform = Transform2D(0, (drag_end + drag_start) / 2)
+	# Result is an array of dictionaries. Each has a \"collider\" key.
+	var actualSelection = space.intersect_shape(query)
+	for item in actualSelection:
+		if not str(item) in str(selected):
+			item.collider.selected = true
+			selected.append(item)
+			if item.collider.type == \"unit\":
+				item.collider.groupPos = Functions.posAverage(selected)
+	_set_selection(selected)	#Because setget not working
+		
+func deselectUnits(e):	#Deselection of units
+	var drag_end = e.position
+	# Extents are measured from center.
+	select_rect.extents = (drag_end - drag_start) / 2
+	var space = get_world_2d().direct_space_state
+	var query = Physics2DShapeQueryParameters.new()
+	query.set_shape(select_rect)
+	query.transform = Transform2D(0, (drag_end + drag_start) / 2)
+	# Result is an array of dictionaries. Each has a \"collider\" key.
+	var actualSelection = space.intersect_shape(query)
+	for item in selected:
+		if not str(item) in str(actualSelection):
+			item.collider.selected = false
+			if item.collider.type == \"unit\":
+				item.collider.groupPos = Vector2.ZERO
+			selected.erase(item)
+	_set_selection(selected)	#Because setget not working
+
+func _set_selection(value):	#Update global selection value
+	Globals.selection = value
+"
+
+[node name="Selector" type="Node2D"]
+z_index = 4096
+script = SubResource( 1 )

@@ -1,0 +1,43 @@
+[gd_scene load_steps=6 format=2]
+
+[ext_resource path="res://scenes/entities/allies/AllyNormal.tscn" type="PackedScene" id=1]
+[ext_resource path="res://scenes/eventObjects/CreditMine.tscn" type="PackedScene" id=2]
+[ext_resource path="res://scenes/ui/PostProcessOverlay.tscn" type="PackedScene" id=3]
+[ext_resource path="res://scenes/ui/Selector.tscn" type="PackedScene" id=4]
+[ext_resource path="res://scenes/ui/PreviewWindow.tscn" type="PackedScene" id=5]
+
+[node name="World" type="Node2D"]
+
+[node name="Background" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color( 0.156863, 0.129412, 0.2, 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Units" type="Node" parent="."]
+
+[node name="AllyNormal" parent="Units" instance=ExtResource( 1 )]
+position = Vector2( 808.143, 450.578 )
+
+[node name="AllyNormal2" parent="Units" instance=ExtResource( 1 )]
+position = Vector2( 1052.41, 235.387 )
+
+[node name="KinematicBody2D" parent="Units" instance=ExtResource( 2 )]
+light_mask = 2
+position = Vector2( 393.066, 554.237 )
+
+[node name="Selector" parent="." instance=ExtResource( 4 )]
+
+[node name="PostProcessOverlay" parent="." instance=ExtResource( 3 )]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="ViewportContainer" parent="CanvasLayer" instance=ExtResource( 5 )]
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_right = -683.5
+margin_bottom = -336.192
+rect_scale = Vector2( 0.4, 0.4 )

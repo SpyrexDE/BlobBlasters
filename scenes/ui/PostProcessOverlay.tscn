@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=2]
+
+[ext_resource path="res://shaders/blurShader.shader" type="Shader" id=1]
+
+[sub_resource type="ShaderMaterial" id=1]
+shader = ExtResource( 1 )
+shader_param/blur_amount = 0.5
+
+[node name="PostProcessOverlay" type="CanvasLayer"]
+
+[node name="ColorRect" type="ColorRect" parent="."]
+material = SubResource( 1 )
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = -12.0034
+margin_top = -5.14429
+margin_right = 10.9966
+margin_bottom = 15.8557
+mouse_filter = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}

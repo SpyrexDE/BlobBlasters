@@ -1,0 +1,304 @@
+[gd_scene load_steps=17 format=2]
+
+[ext_resource path="res://shaders/selectedShader.shader" type="Shader" id=1]
+[ext_resource path="res://assets/Normi.png" type="Texture" id=2]
+[ext_resource path="res://assets/spot.png" type="Texture" id=3]
+[ext_resource path="res://animations/selectionIdle.anim" type="Animation" id=4]
+[ext_resource path="res://animations/deselect.anim" type="Animation" id=5]
+[ext_resource path="res://animations/select.anim" type="Animation" id=6]
+[ext_resource path="res://shaders/Spawn.shader" type="Shader" id=7]
+
+[sub_resource type="GDScript" id=1]
+script/source = "extends KinematicBody2D
+
+export var DEBUG_DRAW = false
+
+export var speed = 100  # Movement speed.
+var type = \"unit\"
+var target_radius = 30  # Stop when this close to target.
+var formatting_target_radius = 0.5
+var target = Vector2.ZERO setget _set_target  # Set this to move.
+var nextPathPoint = Vector2.ZERO
+var selected = false setget _set_selected  # Is this unit selected?
+var groupPos = Vector2.ZERO
+var velocity = Vector2.ZERO
+var middleClicked = false
+var formatting = false setget _set_formatting
+var lastTarget = Vector2.ZERO
+var path = PoolVector2Array()
+
+func _ready():	#Make sprite mat unique, start selIdle anim
+	# Make sure the material is unique to this unit.
+	$Sprite.material = $Sprite.material.duplicate()
+	$SpawnShader.material = $SpawnShader.material.duplicate()
+	$AnimationPlayer4.play(\"spawn\")
+	
+func _physics_process(delta):	#Moving, walk animation
+	velocity = Vector2.ZERO
+	if target:
+		
+		if !$AnimationPlayer2.is_playing():
+			$AnimationPlayer2.play(\"walk\")
+			
+		if path != null && nextPathPoint != null:
+			velocity = position.direction_to(nextPathPoint)
+			if formatting:
+				if position.distance_to(nextPathPoint) < formatting_target_radius:
+					newNextPathPoint()
+			else:
+				if position.distance_to(nextPathPoint) < target_radius:
+					newNextPathPoint()
+
+		
+		if formatting:
+			if position.distance_to(target) < formatting_target_radius:
+				target = null
+				_set_formatting(false)
+		else:
+			if position.distance_to(target) < target_radius:
+				target = null
+	else:
+		if $AnimationPlayer2.is_playing():
+			$AnimationPlayer2.seek(0.0)
+			$AnimationPlayer2.stop()
+	# Find avoidance vector and add to velocity.
+	velocity = (velocity).normalized()
+	if velocity.length() > 0:
+		# Rotate body to point in movement direction.
+		rotation = velocity.angle()
+	var collision = move_and_slide(velocity * speed * delta * 50)
+
+func _set_selected(value):	#Selectrion animation
+	# Draw a highlight around the unit if it's selected.
+	if value != selected:
+		if value:
+			$AnimationPlayer.play(\"select\")
+		else:
+			$AnimationPlayer.play(\"deselect\")
+		selected = value
+
+func _set_target(value):	#Check for ClickType, set lastClick
+	if middleClicked:
+		target = value + Vector2(position.x - groupPos.x, position.y - groupPos.y)	#RELATIVE TO OLD GROUP POINT -> SHOULD BE OPTION IN OPTIONS-MENU!
+	else:
+		target = value
+	lastTarget = value
+	path = get_parent().get_simple_path(self.global_position, target, false)
+	nextPathPoint = path[0]
+
+func _process(delta):	#Check for arrived Nodes
+	for body in $Detect.get_overlapping_bodies():
+		if body.type != null:
+			if body.type == \"unit\":
+				if body.lastTarget == self.lastTarget:
+					if body.target == null:
+						target = null
+
+func newNextPathPoint():	#Set next Pathpoint
+	if path.size() > 1:
+		path.remove(0)
+		nextPathPoint = path[0]
+	else:
+		nextPathPoint = null
+		path = null
+
+func _set_formatting(value):
+	formatting = value
+	if value:
+		$CollisionShape2D.scale = Vector2(0.01, 0.01)
+	else:
+		$CollisionShape2D.scale = Vector2(1.0, 1.0)
+
+func _input(event):
+	if event.is_action_pressed(\"ui_up\"):
+		$AnimationPlayer4.play(\"spawn\")
+	elif event.is_action_pressed(\"ui_down\"):
+		$AnimationPlayer4.play(\"despawn\")
+"
+
+[sub_resource type="ShaderMaterial" id=2]
+shader = ExtResource( 1 )
+shader_param/aura_width = 0.0
+shader_param/aura_color = Color( 0.940798, 0.199818, 0.140261, 1 )
+
+[sub_resource type="CircleShape2D" id=3]
+radius = 16.7044
+
+[sub_resource type="CircleShape2D" id=4]
+radius = 24.0842
+
+[sub_resource type="Animation" id=5]
+length = 0.2
+
+[sub_resource type="Animation" id=6]
+resource_name = "walk"
+length = 0.2
+tracks/0/type = "value"
+tracks/0/path = NodePath("Sprite:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PoolRealArray( 0, 0.1, 0.2 ),
+"transitions": PoolRealArray( -2, -2, -2 ),
+"update": 0,
+"values": [ Vector2( 0.17, 0.17 ), Vector2( 0.18, 0.18 ), Vector2( 0.17, 0.17 ) ]
+}
+
+[sub_resource type="Animation" id=7]
+resource_name = "despawn"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/path = NodePath("SpawnShader:material:shader_param/dispAmt")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PoolRealArray( 0, 0.3 ),
+"transitions": PoolRealArray( -2, -2 ),
+"update": 0,
+"values": [ 0.0, 0.1 ]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("SpawnShader:material:shader_param/aberrationAmt")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/keys = {
+"times": PoolRealArray( 0, 0.3 ),
+"transitions": PoolRealArray( -2, -2 ),
+"update": 0,
+"values": [ 0.0, 0.047 ]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("SpawnShader:material:shader_param/dispSize")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/keys = {
+"times": PoolRealArray( 0, 0.3 ),
+"transitions": PoolRealArray( -2, -2 ),
+"update": 0,
+"values": [ 0.1, 100.0 ]
+}
+tracks/3/type = "value"
+tracks/3/path = NodePath("Sprite:modulate")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/keys = {
+"times": PoolRealArray( 0, 0.3 ),
+"transitions": PoolRealArray( 1, 1 ),
+"update": 0,
+"values": [ Color( 1, 1, 1, 1 ), Color( 1, 1, 1, 0 ) ]
+}
+
+[sub_resource type="Animation" id=8]
+resource_name = "spawn"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/path = NodePath("SpawnShader:material:shader_param/dispAmt")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PoolRealArray( 0, 0.3 ),
+"transitions": PoolRealArray( -2, -2 ),
+"update": 0,
+"values": [ 0.1, 0.0 ]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("SpawnShader:material:shader_param/aberrationAmt")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/keys = {
+"times": PoolRealArray( 0, 0.3 ),
+"transitions": PoolRealArray( -2, -2 ),
+"update": 0,
+"values": [ 0.047, 0.0 ]
+}
+tracks/2/type = "value"
+tracks/2/path = NodePath("SpawnShader:material:shader_param/dispSize")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/keys = {
+"times": PoolRealArray( 0, 0.3 ),
+"transitions": PoolRealArray( -2, -2 ),
+"update": 0,
+"values": [ 100.0, 0.1 ]
+}
+tracks/3/type = "value"
+tracks/3/path = NodePath("Sprite:modulate")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/keys = {
+"times": PoolRealArray( 0, 0.3 ),
+"transitions": PoolRealArray( 1, 1 ),
+"update": 0,
+"values": [ Color( 1, 1, 1, 0 ), Color( 1, 1, 1, 1 ) ]
+}
+
+[sub_resource type="ShaderMaterial" id=9]
+shader = ExtResource( 7 )
+shader_param/dispAmt = 0.0
+shader_param/aberrationAmt = 0.0
+shader_param/dispSize = 0.1
+
+[node name="AllyNormal" type="KinematicBody2D" groups=[
+"units",
+]]
+script = SubResource( 1 )
+
+[node name="Light2D" type="Light2D" parent="."]
+visible = false
+texture = ExtResource( 3 )
+texture_scale = 0.8
+energy = 0.8
+
+[node name="Sprite" type="Sprite" parent="."]
+material = SubResource( 2 )
+scale = Vector2( 0.17, 0.17 )
+texture = ExtResource( 2 )
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+visible = false
+shape = SubResource( 3 )
+
+[node name="Detect" type="Area2D" parent="."]
+visible = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Detect"]
+shape = SubResource( 4 )
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+anims/deselect = ExtResource( 5 )
+anims/hit = SubResource( 5 )
+anims/select = ExtResource( 6 )
+
+[node name="AnimationPlayer2" type="AnimationPlayer" parent="."]
+anims/walk = SubResource( 6 )
+
+[node name="AnimationPlayer3" type="AnimationPlayer" parent="."]
+autoplay = "selectionIdle"
+anims/selectionIdle = ExtResource( 4 )
+
+[node name="AnimationPlayer4" type="AnimationPlayer" parent="."]
+anims/despawn = SubResource( 7 )
+anims/spawn = SubResource( 8 )
+
+[node name="SpawnShader" type="Sprite" parent="."]
+material = SubResource( 9 )
+scale = Vector2( 0.18, 0.18 )
+texture = ExtResource( 2 )
